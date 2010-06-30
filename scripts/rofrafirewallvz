@@ -1,0 +1,82 @@
+### BEGIN INIT INFO
+# Provides:          scriptname
+# Required-Start:
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start daemon at boot time
+# Description:       Enable service provided by daemon.
+### END INIT INFO
+
+
+
+
+
+# Doc: See http://www.glatozen.org/iptables.php
+
+#############################
+# Flush default rules + NAT
+#############################
+/sbin/iptables --flush
+/sbin/iptables -t nat --flush
+
+
+# Je veux que les connexions entrantes soient bloquées par défaut
+iptables -P INPUT DROP
+
+# Je veux que les connexions destinées à être forwardées
+# soient acceptées par défaut
+iptables -P FORWARD ACCEPT
+
+# Je veux que les connexions sortantes soient acceptées par défaut
+iptables -P OUTPUT ACCEPT
+
+# J'accepte les packets entrants relatifs à des connexions déjà établies
+iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+
+# NAT sur vserver
+echo 1 > /proc/sys/net/ipv4/ip_forward
+/sbin/iptables -t nat -I POSTROUTING -s 10.10.16.0/24 -j SNAT --to 88.191.118.111
+
+# Routage du flux Bittorrent (06/11/2009)
+/sbin/iptables -t nat -A PREROUTING -t nat -p tcp -d 88.191.118.111 --dport 10000 -j DNAT --to 10.10.16.115:10000
+/sbin/iptables -t nat -A PREROUTING -t nat -p tcp -d 88.191.118.111 --dport 10001 -j DNAT --to 10.10.16.115:10001
+/sbin/iptables -t nat -A PREROUTING -t nat -p tcp -d 88.191.118.111 --dport 10002 -j DNAT --to 10.10.16.115:10002
+/sbin/iptables -t nat -A PREROUTING -t nat -p tcp -d 88.191.118.111 --dport 16890 -j DNAT --to 10.10.16.115:16890
+
+# Ajout d'une regle pour la VM de DNS tunelling
+/sbin/iptables -t nat -A PREROUTING -t nat -p tcp -d 88.191.118.111 --dport 53 -j DNAT --to 10.10.16.118:53
+
+# J'autorise les connexions TCP entrantes sur le port 80
+# (pour que mon serveur HTTP soit joignable de l'extérieur)
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+# J'autorise les connexions TCP entrantes sur le port 22
+# (pour que mon serveur SSH soit joignable de l'extérieur)
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+
+# J'accepte les "pings"
+iptables -A INPUT -p icmp -j ACCEPT
+
+# Pas de filtrage sur l'interface de "loopback"
+iptables -A INPUT -i lo -j ACCEPT
+
+# Accept internal DNS requests only
+iptables -A INPUT -p udp --dport 53 -j ACCEPT
+iptables -A INPUT -p udp --dport 53 -i eth0 -j DROP
+
+
+# La règle par défaut pour la chaine INPUT devient "REJECT"
+# (il n'est pas possible de mettre REJECT comme politique par défaut)
+iptables -A INPUT -j REJECT
+
+
+####################################################################
+## Strange commands
+####################################################################
+# activate vlan4 interface
+ifup vlan4
+
+# restart bind9 to let it bind to vlan4
+/etc/init.d/bind9 restart

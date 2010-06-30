@@ -11,7 +11,7 @@ MODELE=/home/backups/20071012_installationvserver//vservers/default.tgz
 STORE_DIR=/home/vservers
 PARENT_IP="10.10.16.1"
 PARENT_NAME="exvotoparent"
-
+YOUREMAIL="your@email.com"
 
 
 
@@ -159,7 +159,7 @@ alias mv='mv -f'
 mv -f /$STORE_DIR/$SNAME/etc/passwd_ /$STORE_DIR/$SNAME/etc/passwd
 
 echo "Test de l'envoi des mails"
-vzctl exec ${IP} 'echo "BLA BLA" | mail -s "ggg" fedorage@gmail.com'
+vzctl exec ${IP} 'echo "Email Sending testt" | mail -s "This is an automated test" ${YOUREMAIL}'
 
 echo
 
